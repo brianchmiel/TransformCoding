@@ -5,8 +5,8 @@ import torch.nn as nn
 from sklearn.cluster import KMeans
 from torch.nn import functional as F
 
-from entropy import shannon_entropy
-from huffman import huffman_encode
+from utils.entropy import shannon_entropy
+from utils.huffman import huffman_encode
 
 
 def quantize1d_kmeans(x, num_bits=8, n_jobs=-1):

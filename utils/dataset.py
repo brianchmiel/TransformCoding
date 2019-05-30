@@ -1,5 +1,4 @@
 import logging
-import random
 from json import dump
 from os.path import join
 
@@ -9,7 +8,6 @@ import torchvision
 import torchvision.datasets as datasets
 import tqdm
 from torch.utils.data.dataloader import DataLoader
-from torch.utils.data.sampler import SubsetRandomSampler
 
 import Models
 
@@ -64,14 +62,10 @@ def load_data(args, logger):
     test_data = get_dataset(train=False, transform=transform['test'], datasets_path=args.data)
 
 
-    testloader = torch.utils.data.DataLoader(test_data, batch_size=args.batch, shuffle=True, num_workers=2)
-    data_len = 50000
-    rndIdx = random.randint(0, data_len - args.batch)
-    sample = SubsetRandomSampler(np.linspace(rndIdx, rndIdx + args.batch, args.batch + 1, dtype=np.int)[:-1])
-    statloader = torch.utils.data.DataLoader(train_data, batch_size=args.batch, shuffle=False, num_workers=2,
-                                             sampler=sample)
+    testLoader = torch.utils.data.DataLoader(test_data, batch_size=args.batch, shuffle=False, num_workers=args.workers)
+    trainLoader = torch.utils.data.DataLoader(train_data, batch_size=args.batch, shuffle=True, num_workers=args.workers)
 
-    return testloader, statloader
+    return testLoader, trainLoader
 
 
 
@@ -88,3 +82,4 @@ class TqdmLoggingHandler(logging.Handler):
             raise
         except:
             self.handleError(record)
+

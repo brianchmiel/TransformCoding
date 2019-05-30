@@ -1,74 +1,79 @@
 import os
-
+import time
 import numpy as np
 import torch
 import tqdm
+from utils.meters import AverageMeter, accuracy
 
 
-class Run:
+def runTrain(model, args, trainLoader, epoch,optimizer,criterion,logging):
 
-    def __init__(self, model, logging, criterion):
-        self.model = model
-        self.logging = logging
-        self.best_acc = 0
-        self.criterion = criterion
-    def collectStats(self, testLoader):
-        self.model.eval()
+    model.train()
+    batch_time = AverageMeter()
+    losses = AverageMeter()
+    top1 = AverageMeter()
+    top5 = AverageMeter()
+    end = time.time()
+    for batch_idx, (inputs, targets) in enumerate(tqdm.tqdm(trainLoader)):
+        inputs, targets = inputs.cuda(), targets.cuda()
+        out = model(inputs)
+        loss = criterion(out, targets)
+        loss.backward()
+        optimizer.step()
+
+        # measure accuracy and record loss
+        prec1, prec5 = accuracy(out, targets, topk=(1, 5))
+        losses.update(loss.item(), input.size(0))
+        top1.update(float(prec1), input.size(0))
+        top5.update(float(prec5), input.size(0))
+
+        # measure elapsed time
+        batch_time.update(time.time() - end)
+        end = time.time()
+
+        if batch_idx % args.print_freq == 0:
+            logging.info('Epoch Train: [{0}]\t'
+                         'Train: [{0}/{1}]\t'
+                  'Time {batch_time.val:.3f} ({batch_time.avg:.3f})\t'
+                  'Loss {loss.val:.4f} ({loss.avg:.4f})\t'
+                  'Prec@1 {top1.val:.3f} ({top1.avg:.3f})\t'
+                  'Prec@5 {top5.val:.3f} ({top5.avg:.3f})'.format(
+                epoch, batch_idx, len(trainLoader), batch_time=batch_time, loss=losses,
+                top1=top1, top5=top5))
+
+    return losses.avg, top1.avg, top5.avg
+
+
+def runTest(model, args, testLoader, epoch,criterion,logging):
+
+    model.eval()
+    batch_time = AverageMeter()
+    losses = AverageMeter()
+    top1 = AverageMeter()
+    top5 = AverageMeter()
+    end = time.time()
+    for batch_idx, (inputs, targets) in enumerate(tqdm.tqdm(testLoader)):
+        inputs, targets = inputs.cuda(), targets.cuda()
         with torch.no_grad():
-            for batch_idx, (inputs, targets) in enumerate(testLoader):
-                inputs, targets = inputs.cuda(), targets.cuda()
-                self.model(inputs)
+            out = model(inputs)
+            loss = criterion(out, targets)
 
+        # measure accuracy and record loss
+        prec1, prec5 = accuracy(out, targets, topk=(1, 5))
+        losses.update(loss.item(), input.size(0))
+        top1.update(float(prec1), input.size(0))
+        top5.update(float(prec5), input.size(0))
 
-    def runTest(self, args, testLoader, epoch):
-        self.model.eval()
-        # crossEntrTotalLoss, compressTotalLoss, test_loss, correct, total = 0, 0, 0, 0, 0
-        test_loss, correct, total, entropy, entropyH, mseTotal = 0, 0, 0, 0,0,0
-        with torch.no_grad():
-            for batch_idx, (inputs, targets) in enumerate(tqdm.tqdm(testLoader)):
-                inputs, targets = inputs.cuda(), targets.cuda()
-                out = self.model(inputs)
-                loss = self.criterion(out, targets)
-                test_loss += loss.item()
-                _, predicted = out.max(1)
-                total += targets.size(0)
-                correct += predicted.eq(targets).sum().item()
-                ent = np.array([x.bit_count for x in self.model.modules() if hasattr(x, "bit_count")])
-                entH = np.array([x.bit_countH for x in self.model.modules() if hasattr(x, "bit_countH")])
-                mse = np.array([x.mse for x in self.model.modules() if hasattr(x, "mse")])
-                if args.transform:
-                    entropy += np.sum(ent)
-                    entropyH += np.sum(entH)
-                    mseTotal +=np.sum(mse)
-                if batch_idx % 10 == 0 :
-                    self.logging.info('step: {} / {} : Loss: {:.3f}  | ent: {:.3f} Mbit | huff: {:.3f} Mbit | '
-                                      'Acc: {:.3f}% ({}/{})'
-                                      .format(batch_idx + 1, len(testLoader), test_loss / (batch_idx + 1),
-                                              entropy / 1e6 / (batch_idx + 1), entropyH / 1e6 / (batch_idx + 1),
-                                              100. * correct / total, correct, total))
+    # measure elapsed time
+    batch_time.update(time.time() - end)
 
-        self.logging.info('step: {} / {} : Loss: {:.3f}  | ent: {:.3f} Mbit | huff: {:.3f} Mbit | '
-                          'Acc: {:.3f}% ({}/{})'
-                          .format(batch_idx + 1, len(testLoader), test_loss / (batch_idx + 1),
-                                  entropy / 1e6 / (batch_idx + 1), entropyH / 1e6 / (batch_idx + 1),
-                                  100. * correct / total, correct, total))
+    logging.info('Epoch Test: [{0}]\t'
+          'Time ({batch_time.avg:.3f})\t'
+          'Loss {loss.val:.4f} ({loss.avg:.4f})\t'
+          'Prec@1 {top1.val:.3f} ({top1.avg:.3f})\t'
+          'Prec@5 {top5.val:.3f} ({top5.avg:.3f})'.format(
+        epoch,  batch_time=batch_time, loss=losses,
+        top1=top1, top5=top5))
 
-        act_count = np.sum(np.array([x.act_size for x in self.model.modules() if hasattr(x, "act_size")]))
-        self.logging.info('Activation count: {}. Average entropy: {:.4f}. Huffman bits: {:.4f}. MSE: {:.4f}.'
-                          .format(act_count, entropy / len(testLoader) / act_count, float(entropyH) / len(testLoader) / act_count,
-                                  mseTotal / len(testLoader) / act_count))
+    return losses.avg, top1.avg, top5.avg
 
-
-        # Save checkpoint.
-        acc = 100. * correct / total
-        if acc > self.best_acc:
-            self.logging.info('Saving..')
-            state = {
-                'net': self.model.state_dict(),
-                'acc': acc,
-                'epoch': epoch,
-            }
-            if not os.path.isdir('results'):
-                os.mkdir('results')
-            torch.save(state, args.save + '/ckpt.t7')
-            self.best_acc = acc
