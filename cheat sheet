@@ -1,0 +1,2 @@
+git config --global http.proxy http://proxy.iil.intel.com:911
+git config --global https.proxy http://proxy.iil.intel.com:912
