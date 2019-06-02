@@ -41,13 +41,13 @@ def parseArgs():
     parser.add_argument('--batch', default=250, type=int, help='batch size')
     parser.add_argument('--save', type=str, default='EXP', help='experiment name')
     parser.add_argument('--workers', default=2, type=int, help='Number of data loading workers (default: 2)')
-    parser.add_argument('--print_freq', default=200, type=int, help='Number of batches between log messages')
+    parser.add_argument('--print_freq', default=50, type=int, help='Number of batches between log messages')
     #optimization
     parser.add_argument('--lr', type=float, default=0.01, help='The learning rate.')
     parser.add_argument('--momentum', '-m', type=float, default=0.9, help='Momentum.')
     parser.add_argument('--decay', '-d', type=float, default=4e-5, help='Weight decay (L2 penalty).')
     parser.add_argument('--gamma', type=float, default=0.1, help='LR is multiplied by gamma at scheduled epochs.')
-    parser.add_argument('--schedule', type=int, nargs='+', default=[200, 50],
+    parser.add_argument('--schedule', type=int, nargs='+', default=[20, 50],
                         help='Decrease learning rate at these epochs.')
 
     #algorithm
@@ -81,8 +81,7 @@ if __name__ == '__main__':
         print('no gpu device available')
         exit(1)
 
-    # save args to JSON
-    saveArgsToJSON(args)
+
 
     # update GPUs list
     if type(args.gpu) is not 'None':
@@ -113,7 +112,8 @@ if __name__ == '__main__':
 
 
 
-
+    # save args to JSON
+    saveArgsToJSON(args)
 
     # Logger
     log_format = '%(asctime)s %(message)s'
@@ -168,13 +168,13 @@ if __name__ == '__main__':
     mlflow.set_tracking_uri(os.path.join(baseFolder, 'mlruns_mxt'))
 
     mlflow.set_experiment(args.folderName)
-    with mlflow.start_run(run_name="{}_W{}_A{}".format(args.arch, args.qweight, args.qtype)):
+    with mlflow.start_run(run_name="{}".format(args.folderName)):
         params = vars(args)
         for p in params:
             mlflow.log_param(p, params[p])
         start_epoch = 0
         best_acc = 0
-        for epoch in trange(start_epoch, args.epochs + 1):
+        for epoch in trange(start_epoch, args.epochs ):
             scheduler.step()
             trainLoss, trainTop1, trainTop5 = runTrain(model, args, trainLoader, epoch,optimizer,criterion,logging)
             testLoss, testTop1, testTop5 = runTest(model, args, testLoader, epoch, criterion, logging)
