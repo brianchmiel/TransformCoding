@@ -17,6 +17,9 @@ __DATASETS_DEFAULT_PATH = './data/'
 def loadModelNames():
     return [name for (name, obj) in Models.__dict__.items() if hasattr(obj, '__call__')]
 
+def loadDatasets():
+    return dict(cifar10=10, cifar100=100, imagenet=1000)
+
 def saveArgsToJSON(args):
     # save args to JSON
     args.jsonPath = '{}/args.txt'.format(args.save)
@@ -24,42 +27,70 @@ def saveArgsToJSON(args):
         dump(vars(args), f, indent=4, sort_keys=True)
 
 
-def get_dataset(train, transform, target_transform=None, datasets_path=__DATASETS_DEFAULT_PATH):
+def get_dataset(name, train, transform, target_transform=None, download = True, datasets_path=__DATASETS_DEFAULT_PATH):
     root = datasets_path
-    if train:
-        root = join(root, 'train')
-    else:
-        root = join(root, 'val')
-    return datasets.ImageFolder(root=root, transform=transform, target_transform=target_transform)
+    if name == 'cifar10':
+        cifar_ = datasets.CIFAR10(root=root, train=train, transform=transform, target_transform=target_transform,
+                                  download=download)
+        return cifar_
+
+    elif name == 'cifar100':
+        cifar_ = datasets.CIFAR100(root=root, train=train, transform=transform, target_transform=target_transform,
+                                   download=download)
+        return cifar_
+
+    elif name == 'imagenet':
+        if train:
+            root = join(root, 'train')
+        else:
+            root = join(root, 'val')
+        return datasets.ImageFolder(root=root, transform=transform, target_transform=target_transform)
 
 
 def get_transform(args):
-    resize = 256 if args.model != 'inception_v3' else 299
-    crop_size = 224 if args.model != 'inception_v3' else 299
-    transform_train = torchvision.transforms.Compose([
-        torchvision.transforms.RandomResizedCrop(crop_size),
-        torchvision.transforms.RandomHorizontalFlip(),
-        torchvision.transforms.ToTensor(),
-        torchvision.transforms.Normalize(mean=[0.485, 0.456, 0.406],
-                                         std=[0.229, 0.224, 0.225]),
-    ])
-    transform_test = torchvision.transforms.Compose([
-        torchvision.transforms.Resize(resize),
-        torchvision.transforms.CenterCrop(crop_size),
-        torchvision.transforms.ToTensor(),
-        torchvision.transforms.Normalize(mean=[0.485, 0.456, 0.406],
-                                         std=[0.229, 0.224, 0.225]),
-    ])
+    if args.dataset == 'imagenet':
+        resize = 256 if args.model != 'inception_v3' else 299
+        crop_size = 224 if args.model != 'inception_v3' else 299
+        transform_train = torchvision.transforms.Compose([
+            torchvision.transforms.RandomResizedCrop(crop_size),
+            torchvision.transforms.RandomHorizontalFlip(),
+            torchvision.transforms.ToTensor(),
+            torchvision.transforms.Normalize(mean=[0.485, 0.456, 0.406],
+                                             std=[0.229, 0.224, 0.225]),
+        ])
+        transform_test = torchvision.transforms.Compose([
+            torchvision.transforms.Resize(resize),
+            torchvision.transforms.CenterCrop(crop_size),
+            torchvision.transforms.ToTensor(),
+            torchvision.transforms.Normalize(mean=[0.485, 0.456, 0.406],
+                                             std=[0.229, 0.224, 0.225]),
+        ])
+    else:  # cifar
+        transform_train = torchvision.transforms.Compose([
+            torchvision.transforms.RandomCrop(32, padding=4),
+            torchvision.transforms.RandomHorizontalFlip(),
+            torchvision.transforms.ToTensor(),
+            torchvision.transforms.Normalize((0.4914, 0.4822, 0.4465), (0.2023, 0.1994, 0.2010)),
+        ])
+        transform_test = torchvision.transforms.Compose([
+            torchvision.transforms.ToTensor(),
+            torchvision.transforms.Normalize((0.4914, 0.4822, 0.4465), (0.2023, 0.1994, 0.2010)),
+        ])
+
     return transform_train, transform_test
 
 def load_data(args, logger):
     # init transforms
     logger.info('==> Preparing data..')
     transform_train, transform_test = get_transform(args)
+
+
     transform = {'train': transform_train, 'test': transform_test}
 
-    train_data = get_dataset(train=True, transform=transform['train'], datasets_path=args.data)
-    test_data = get_dataset(train=False, transform=transform['test'], datasets_path=args.data)
+    train_data = get_dataset(args.dataset, train=True, transform=transform['train'], datasets_path=args.data)
+    test_data = get_dataset(args.dataset, train=False, transform=transform['test'], datasets_path=args.data)
+
+
 
 
     testLoader = torch.utils.data.DataLoader(test_data, batch_size=args.batch, shuffle=False, num_workers=args.workers)

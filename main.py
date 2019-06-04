@@ -25,30 +25,36 @@ from tqdm import trange
 
 import Models
 from run import runTrain, runTest
-from utils.dataset import loadModelNames,  saveArgsToJSON, TqdmLoggingHandler, load_data
+from utils.dataset import loadModelNames,  saveArgsToJSON, TqdmLoggingHandler, load_data, loadDatasets
 from quantizeWeights import quantizeWeights
+from corrLoss import corrLoss
 import mlflow
 
 def parseArgs():
     modelNames = loadModelNames()
+    datasets = loadDatasets()
 
     parser = argparse.ArgumentParser(description='Transform Coding')
     #general
-    parser.add_argument('--data', type=str, help='location of the data corpus', required = True)
+    parser.add_argument('--data', type=str, help='location of the data corpus')
+    parser.add_argument('--dataset', metavar='DATASET', default='cifar10', choices=datasets.keys(), help='dataset name')
+
     parser.add_argument('--gpu', type=str, default='0', help='gpu device id, e.g. 0,1,3')
     parser.add_argument('--seed', type=int, default=None, metavar='S', help='random seed (default: 1)')
-    parser.add_argument('--epochs', type=int, default=100, help='Number of epochs to train.')
+    parser.add_argument('--epochs', type=int, default=200, help='Number of epochs to train.')
     parser.add_argument('--batch', default=250, type=int, help='batch size')
     parser.add_argument('--save', type=str, default='EXP', help='experiment name')
     parser.add_argument('--workers', default=2, type=int, help='Number of data loading workers (default: 2)')
     parser.add_argument('--print_freq', default=50, type=int, help='Number of batches between log messages')
     #optimization
-    parser.add_argument('--lr', type=float, default=0.01, help='The learning rate.')
+    parser.add_argument('--lr', type=float, default=0.1, help='The learning rate.')
     parser.add_argument('--momentum', '-m', type=float, default=0.9, help='Momentum.')
     parser.add_argument('--decay', '-d', type=float, default=4e-5, help='Weight decay (L2 penalty).')
     parser.add_argument('--gamma', type=float, default=0.1, help='LR is multiplied by gamma at scheduled epochs.')
-    parser.add_argument('--schedule', type=int, nargs='+', default=[20, 50],
+    parser.add_argument('--schedule', type=int, nargs='+', default=[20, 50,100],
                         help='Decrease learning rate at these epochs.')
+    parser.add_argument('--regul', type=float, default=0, help='Regularization strength')
+
 
     #algorithm
     parser.add_argument('--actBitwidth', default=32, type=float,
@@ -65,9 +71,12 @@ def parseArgs():
     parser.add_argument('--transform', action='store_true', help='if use linear transformation, otherwise use regular inference')
 
 
+
     args = parser.parse_args()
+    args.nClasses = datasets[args.dataset]
 
-
+    if args.dataset == 'cifar10' or args.dataset =='cifar100':
+        assert(args.model == 'resnet20' or args.model =='resnet56')
 
     return args
 
@@ -75,6 +84,9 @@ def parseArgs():
 if __name__ == '__main__':
 
     args = parseArgs()
+
+    # set number of model output classes
+
 
     #run only in GPUs
     if not is_available():
@@ -139,7 +151,7 @@ if __name__ == '__main__':
     model.loadPreTrained()
     model = model.cuda()
 
-    criterion = CrossEntropyLoss().cuda()
+    criterion = corrLoss(args).cuda()
     optimizer = torch.optim.SGD(model.parameters(), args.lr, momentum=args.momentum, weight_decay=args.decay,
                                 nesterov=True)
     scheduler = MultiStepLR(optimizer, milestones=args.schedule, gamma=args.gamma)
@@ -176,13 +188,21 @@ if __name__ == '__main__':
         best_acc = 0
         for epoch in trange(start_epoch, args.epochs ):
             scheduler.step()
-            trainLoss, trainTop1, trainTop5 = runTrain(model, args, trainLoader, epoch,optimizer,criterion,logging)
-            testLoss, testTop1, testTop5 = runTest(model, args, testLoader, epoch, criterion, logging)
+            trainTotalLoss, trainCELoss, trainCorrLoss, trainTop1, trainTop5 = runTrain(model, args, trainLoader, epoch,optimizer,criterion,logging)
+            testTotalLoss, testCELoss, testCorrLoss, testTop1, testTop5 = runTest(model, args, testLoader, epoch, criterion, logging)
+
 
             if mlflow.active_run() is not None:
-                mlflow.log_metric('top1', testTop1)
-                mlflow.log_metric('top5', testTop5)
-                mlflow.log_metric('loss', testLoss)
+                mlflow.log_metric('Test top1', testTop1)
+                mlflow.log_metric('Test top5', testTop5)
+                mlflow.log_metric('Train top1', trainTop1)
+                mlflow.log_metric('Train top5', trainTop5)
+                mlflow.log_metric('TestTotalloss', testTotalLoss)
+                mlflow.log_metric('testCELoss', testCELoss)
+                mlflow.log_metric('testCorrLoss', testCorrLoss)
+                mlflow.log_metric('trainTotalLoss', trainTotalLoss)
+                mlflow.log_metric('trainCELoss', trainCELoss)
+                mlflow.log_metric('trainCorrLoss', trainCorrLoss)
 
             # Save checkpoint.
             if testTop1 > best_acc:

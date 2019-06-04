@@ -7,6 +7,19 @@ from torch.nn import functional as F
 
 from utils.entropy import shannon_entropy
 from utils.huffman import huffman_encode
+from utils.meters import measureCorrBetweenChannels
+
+
+class ReLUCorr(nn.ReLU):
+    def __init__(self, inplace=False):
+        super(ReLUCorr, self).__init__(inplace)
+        self.corr = 0
+
+    def forward(self, input):
+
+        self.corr = measureCorrBetweenChannels(input)
+        out = super(ReLUCorr, self).forward(input)
+        return out
 
 
 def quantize1d_kmeans(x, num_bits=8, n_jobs=-1):

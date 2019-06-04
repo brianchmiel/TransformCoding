@@ -100,3 +100,20 @@ class AccuracyMeter(object):
     @property
     def avg_error(self):
         return {n: 100. - meter.avg for (n, meter) in self._meters.items()}
+
+
+def measureCorrBetweenChannels(tensor):
+    N, C, H, W = tensor.shape  # N x C x H x W
+    tensor = tensor.transpose(0, 1).contiguous()
+    tensor = tensor.contiguous().view(tensor.shape[0], -1)
+    # Centering the data
+    tensor = tensor - torch.mean(tensor, dim=1, keepdim=True)
+
+    #stds
+    stds = torch.std(tensor, dim=1, keepdim=True)
+    stds = torch.matmul(stds,stds.t())
+
+    tensor = torch.matmul(tensor,tensor.t()) / tensor.shape[1]
+    tensor = torch.div(tensor, stds + 1e-10)
+
+    return (torch.sum(torch.abs(tensor)) - torch.sum(torch.abs(torch.diag(tensor)))) / tensor.numel()

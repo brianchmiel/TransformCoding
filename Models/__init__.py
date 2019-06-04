@@ -3,4 +3,5 @@ from .ResNet import ResNet50 as resnet50
 from .ResNet import ResNet101 as resnet101
 from .Inception import Inception3 as inception_v3
 from .MobileNetV2 import MobileNetV2 as mobilenet_v2
-
+from .ResNet import ResNet20 as resnet20
+from .ResNet import ResNet56 as resnet56
