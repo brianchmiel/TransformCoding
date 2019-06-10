@@ -66,6 +66,7 @@ def runTest(model, args, testLoader, epoch,criterion,logging):
     corrLosses = AverageMeter()
     top1 = AverageMeter()
     top5 = AverageMeter()
+    entropy = 0
     end = time.time()
     for batch_idx, (inputs, targets) in enumerate(testLoader):
         inputs, targets = inputs.cuda(), targets.cuda()
@@ -73,6 +74,8 @@ def runTest(model, args, testLoader, epoch,criterion,logging):
             out = model(inputs)
             corr = torch.sum(torch.tensor([m.corr for m in model.modules() if hasattr(m, "corr")]))
             totalLoss, crossEntropyLoss, corrLoss = criterion(out, targets, corr)
+
+            entropy += np.sum(np.array([x.bit_count for x in model.modules() if hasattr(x, "bit_count")]))
 
         # measure accuracy and record loss
         prec1, prec5 = accuracy(out, targets, topk=(1, 5))
@@ -84,16 +87,18 @@ def runTest(model, args, testLoader, epoch,criterion,logging):
 
     # measure elapsed time
     batch_time.update(time.time() - end)
-
+    act_count = np.sum(np.array([x.act_size for x in model.modules() if hasattr(x, "act_size")]))
+    avgEntropy = float(entropy) / len(testLoader) / act_count
     logging.info('Epoch Test: [{}]\t'
           'Time ({batch_time.avg:.3f})\t'
           'Total Loss {loss.val:.4f} ({loss.avg:.4f})\t'
           'Cross Entropy Loss {CEloss.val:.4f} ({CEloss.avg:.4f})\t'
           'Correlation Loss {Corrloss.val:.4f} ({Corrloss.avg:.4f})\t'
+          'Entropy {ent} \t'       
           'Prec@1 {top1.val:.3f} ({top1.avg:.3f})\t'
           'Prec@5 {top5.val:.3f} ({top5.avg:.3f})'.format(
         epoch,  batch_time=batch_time, loss=totalLosses,
-        CEloss=ceLosses, Corrloss=corrLosses, top1=top1, top5=top5))
+        CEloss=ceLosses, Corrloss=corrLosses, ent = avgEntropy ,top1=top1, top5=top5))
 
-    return totalLosses.avg, ceLosses.avg, corrLosses.avg, top1.avg, top5.avg
+    return totalLosses.avg, ceLosses.avg, corrLosses.avg, top1.avg, top5.avg,avgEntropy
 

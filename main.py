@@ -43,7 +43,7 @@ def parseArgs():
     parser.add_argument('--seed', type=int, default=None, metavar='S', help='random seed (default: 1)')
     parser.add_argument('--epochs', type=int, default=200, help='Number of epochs to train.')
     parser.add_argument('--batch', default=250, type=int, help='batch size')
-    parser.add_argument('--save', type=str, default='EXP', help='experiment name')
+    parser.add_argument('--exp', type=str, default='', help='experiment name')
     parser.add_argument('--workers', default=2, type=int, help='Number of data loading workers (default: 2)')
     parser.add_argument('--print_freq', default=50, type=int, help='Number of batches between log messages')
     #optimization
@@ -176,20 +176,26 @@ if __name__ == '__main__':
     #         logging.info('Loaded preTrained model with weights quantized to {} bits'.format(args.weightBitwidth))
 
 
+
+
+
+
     #mlflow
     mlflow.set_tracking_uri(os.path.join(baseFolder, 'mlruns_mxt'))
 
-    mlflow.set_experiment(args.folderName)
+    mlflow.set_experiment(args.exp + '_' + args.model )
     with mlflow.start_run(run_name="{}".format(args.folderName)):
         params = vars(args)
         for p in params:
             mlflow.log_param(p, params[p])
         start_epoch = 0
-        best_acc = 0
+        minCorrLoss = 10000
         for epoch in trange(start_epoch, args.epochs ):
             scheduler.step()
+            testTotalLoss, testCELoss, testCorrLoss, testTop1, testTop5, avgEntropy = runTest(model, args, testLoader, epoch,
+                                                                                  criterion, logging)
             trainTotalLoss, trainCELoss, trainCorrLoss, trainTop1, trainTop5 = runTrain(model, args, trainLoader, epoch,optimizer,criterion,logging)
-            testTotalLoss, testCELoss, testCorrLoss, testTop1, testTop5 = runTest(model, args, testLoader, epoch, criterion, logging)
+
 
 
             if mlflow.active_run() is not None:
@@ -203,14 +209,15 @@ if __name__ == '__main__':
                 mlflow.log_metric('trainTotalLoss', trainTotalLoss)
                 mlflow.log_metric('trainCELoss', trainCELoss)
                 mlflow.log_metric('trainCorrLoss', trainCorrLoss)
-
+                mlflow.log_metric('avgEntropy', avgEntropy)
             # Save checkpoint.
-            if testTop1 > best_acc:
+            if minCorrLoss > testCorrLoss:
                 state = {
                     'net': model.state_dict(),
                     'acc': testTop1,
                     'epoch': epoch,
+                    'testCorrLoss': testCorrLoss,
                 }
                 torch.save(state, args.save + '/ckpt.t7')
-                best_acc = testTop1
+                minCorrLoss = testCorrLoss
 

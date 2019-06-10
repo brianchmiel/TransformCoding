@@ -16,7 +16,7 @@ class corrLoss(Module):
 
     def forward(self, input, target, modelCorr):
         crossEntropyLoss = self.crossEntropyLoss(input, target)
-        corrLoss = modelCorr
+        corrLoss = 1 / modelCorr
         totalLoss = crossEntropyLoss + (self.regul * corrLoss)
         return totalLoss, crossEntropyLoss, corrLoss
 

@@ -10,14 +10,63 @@ from utils.huffman import huffman_encode
 from utils.meters import measureCorrBetweenChannels
 
 
+
+
+
+
 class ReLUCorr(nn.ReLU):
     def __init__(self, inplace=False):
         super(ReLUCorr, self).__init__(inplace)
         self.corr = 0
+        self.actBitwidth = 8
+
 
     def forward(self, input):
 
         self.corr = measureCorrBetweenChannels(input)
+
+        if not self.training:
+            N, C, H, W = input.shape  # N x C x H x W
+            im = featuresReshape(input, N, C, H, W, 1, 1)
+
+            mn = torch.mean(im, dim=1, keepdim=True)
+            # Centering the data
+            im = im - mn
+
+            u, s = get_projection_matrix(im, 'pca', 1.0)
+
+            imProj = torch.matmul(u.t(), im)
+
+            dynMax = torch.max(imProj)
+            dynMin = torch.min(imProj)
+
+            if self.actBitwidth < 30:
+                imProj, mult, add = part_quant(imProj, max=dynMax, min=dynMin,
+                                               bitwidth=self.actBitwidth)
+
+            self.act_size = imProj.numel()
+            self.bit_per_entry = shannon_entropy(imProj).item()
+            self.bit_count = self.bit_per_entry * self.act_size
+
+
+            if self.actBitwidth < 30:
+                imProj = imProj * mult + add
+
+            imProj = torch.matmul(u, imProj)
+
+
+            # Bias Correction
+            imProj = imProj - torch.mean(imProj, dim=1, keepdim=True)
+
+
+
+            # return original mean
+            imProj = imProj + mn
+
+            # return to general
+            input = featuresReshapeBack(imProj, N, C, H, W, 1, 1)
+
+
         out = super(ReLUCorr, self).forward(input)
         return out
 

@@ -240,7 +240,7 @@ class ResNetCifar(nn.Module):
         return x
 
     def loadPreTrained(self):
-        preTrainedDir = './preTrained/' + self.name  + '/ckpt.t7'
+        preTrainedDir = '/home/brianch/TransformCoding/preTrained/' + self.name  + '/ckpt.t7'
         checkpoint = torch.load(preTrainedDir)
         self.load_state_dict(checkpoint['net'])
 
