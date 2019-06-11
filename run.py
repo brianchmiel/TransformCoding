@@ -6,7 +6,7 @@ import torch
 from utils.meters import AverageMeter, accuracy
 
 
-def runTrain(model, args, trainLoader, epoch, optimizer, criterion, logging):
+def runTrain(model, args, trainLoader, epoch, optimizer, criterion, logging, use_corr=False):
     model.train()
     batch_time = AverageMeter()
     totalLosses = AverageMeter()
@@ -27,7 +27,11 @@ def runTrain(model, args, trainLoader, epoch, optimizer, criterion, logging):
         #             corr = m.corr
         corr = torch.sum(torch.stack([m.corr for m in model.modules() if hasattr(m, "corr")]))
         totalLoss, crossEntropyLoss, corrLoss = criterion(out, targets, corr)
-        totalLoss.backward()
+        if use_corr:
+            ls = totalLoss
+        else:
+            ls = crossEntropyLoss
+        ls.backward()
         optimizer.step()
 
         # measure accuracy and record loss

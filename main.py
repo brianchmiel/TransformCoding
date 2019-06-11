@@ -43,8 +43,7 @@ def parseArgs():
     parser.add_argument('--workers', default=2, type=int, help='Number of data loading workers (default: 2)')
     parser.add_argument('--print_freq', default=50, type=int, help='Number of batches between log messages')
     parser.add_argument('--pre-trained', default='preTrained', type=str, help='location of the pretrained models')
-    parser.add_argument('--onlyInference', action='store_true',
-                        help='If use only inference')
+    parser.add_argument('--onlyInference', action='store_true', help='If use only inference')
     # optimization
     parser.add_argument('--lr', type=float, default=0.1, help='The learning rate.')
     parser.add_argument('--momentum', '-m', type=float, default=0.9, help='Momentum.')
@@ -68,6 +67,8 @@ def parseArgs():
                         help='which projection we do: [eye, pca, pcaQ, pcaT]')
     parser.add_argument('--transform', action='store_true',
                         help='if use linear transformation, otherwise use regular inference')
+    parser.add_argument('--use-corr', action='store_true', help='Use correlation loss')
+    parser.add_argument('--ea', action='store_true', help='Use entropy approximation')
 
     args = parser.parse_args()
     args.nClasses = datasets[args.dataset]
@@ -176,12 +177,11 @@ if __name__ == '__main__':
 
         for epoch in trange(start_epoch, args.epochs):
             scheduler.step()
-            testTotalLoss, testCELoss, testCorrLoss, testTop1, testTop5, avgEntropy = runTest(model, args, testLoader,
-                                                                                              epoch,
-                                                                                              criterion, logging)
+            out = runTest(model, args, testLoader, epoch, criterion, logging)
+            testTotalLoss, testCELoss, testCorrLoss, testTop1, testTop5, avgEntropy = out
             if not args.onlyInference:
-                trainTotalLoss, trainCELoss, trainCorrLoss, trainTop1, trainTop5 = runTrain(model, args, trainLoader, epoch,
-                                                                                            optimizer, criterion, logging)
+                out = runTrain(model, args, trainLoader, epoch, optimizer, criterion, logging, args.use_corr)
+                trainTotalLoss, trainCELoss, trainCorrLoss, trainTop1, trainTop5 = out
 
             if mlflow.active_run() is not None:
                 mlflow.log_metric('Test top1', testTop1)

@@ -5,12 +5,13 @@ from sklearn.cluster import KMeans
 from torch.nn import functional as F
 
 from utils.entropy import shannon_entropy
+from utils.entropy_net import EntropyApprox
 from utils.huffman import huffman_encode
 from utils.meters import measureCorrBetweenChannels
 
 
 class ReLUCorr(nn.ReLU):
-    def __init__(self, args, inplace=False):
+    def __init__(self, args, channel_count, entropy_approximation=False, inplace=False):
         super(ReLUCorr, self).__init__(inplace)
         self.corr = 0
         self.actBitwidth = args.actBitwidth
@@ -20,6 +21,13 @@ class ReLUCorr(nn.ReLU):
         self.eigenVar = args.eigenVar
 
         self.transformType = args.transformType
+
+        self.entropy_approximation = entropy_approximation
+        if self.entropy_approximation:
+            self.entropy_net = EntropyApprox(
+                self.microBlockSz * self.microBlockSz * (channel_count // self.channelsDiv))
+            self.entropy_loss = nn.MSELoss()
+            self.entropy_loss_value = None
 
     def forward(self, input):
 
@@ -46,9 +54,10 @@ class ReLUCorr(nn.ReLU):
 
                 self.act_size = imProj.numel()
                 self.bit_per_entry = shannon_entropy(imProj).item()
+                if self.entropy_approximation:
+                    self.entropy_loss_value = self.entropy_loss(self.entropy_net(imProj))
                 self.bit_count = self.bit_per_entry * self.act_size
 
-            if self.actBitwidth < 30:
                 imProj = imProj * mult + add
 
             imProj = torch.matmul(self.u, imProj)
@@ -147,7 +156,7 @@ def featuresReshapeBack(input, N, C, H, W, microBlockSz, channelsDiv):
 
 
 class ReLuPCA(nn.Module):
-    def __init__(self, args, mxRelu6=False):
+    def __init__(self, args, channel_count, entropy_approximation=False, mxRelu6=False):
         super(ReLuPCA, self).__init__()
         self.actBitwidth = args.actBitwidth
         self.transformType = args.transformType
@@ -163,6 +172,13 @@ class ReLuPCA(nn.Module):
             self.relu = nn.ReLU6(inplace=True)
         else:
             self.relu = nn.ReLU(inplace=True)
+
+        self.entropy_approximation = entropy_approximation
+        if self.entropy_approximation:
+            self.entropy_net = EntropyApprox(
+                self.microBlockSz * self.microBlockSz * (channel_count // self.channelsDiv))
+            self.entropy_loss = nn.MSELoss()
+            self.entropy_loss_value = None
 
     def forward(self, input):
 
@@ -198,6 +214,8 @@ class ReLuPCA(nn.Module):
 
             self.act_size = imProj.numel()
             self.bit_per_entry = shannon_entropy(imProj).item()
+            if self.entropy_approximation:
+                self.entropy_loss_value = self.entropy_loss(self.entropy_net(imProj))
             self.bit_count = self.bit_per_entry * self.act_size
             # if False: #add if want to show huffman code in additional to theoretical entropy
             self.bit_countH = huffman_encode(imProj)
