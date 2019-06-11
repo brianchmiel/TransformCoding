@@ -10,10 +10,15 @@ from utils.meters import measureCorrBetweenChannels
 
 
 class ReLUCorr(nn.ReLU):
-    def __init__(self, inplace=False):
+    def __init__(self, args, inplace=False):
         super(ReLUCorr, self).__init__(inplace)
         self.corr = 0
-        self.actBitwidth = 8
+        self.actBitwidth = args.actBitwidth
+        self.collectStats = True
+        self.microBlockSz = args.MicroBlockSz
+        self.channelsDiv = args.channelsDiv
+        self.eigenVar = args.eigenVar
+
 
     def forward(self, input):
 
@@ -21,15 +26,15 @@ class ReLUCorr(nn.ReLU):
 
         if not self.training:
             N, C, H, W = input.shape  # N x C x H x W
-            im = featuresReshape(input, N, C, H, W, 1, 1)
+            im = featuresReshape(input, N, C, H, W, self.microBlockSz, self.channelsDiv)
 
             mn = torch.mean(im, dim=1, keepdim=True)
             # Centering the data
             im = im - mn
+            if self.collectStats:
+                self.u, self.s = get_projection_matrix(im, self.transformType, self.eigenVar)
 
-            u, s = get_projection_matrix(im, 'pca', 1.0)
-
-            imProj = torch.matmul(u.t(), im)
+            imProj = torch.matmul(self.u.t(), im)
 
             dynMax = torch.max(imProj)
             dynMin = torch.min(imProj)
@@ -45,7 +50,7 @@ class ReLUCorr(nn.ReLU):
             if self.actBitwidth < 30:
                 imProj = imProj * mult + add
 
-            imProj = torch.matmul(u, imProj)
+            imProj = torch.matmul(self.u, imProj)
 
             # Bias Correction
             imProj = imProj - torch.mean(imProj, dim=1, keepdim=True)
@@ -54,7 +59,7 @@ class ReLUCorr(nn.ReLU):
             imProj = imProj + mn
 
             # return to general
-            input = featuresReshapeBack(imProj, N, C, H, W, 1, 1)
+            input = featuresReshapeBack(imProj, N, C, H, W, self.microBlockSz, self.channelsDiv)
 
         out = super(ReLUCorr, self).forward(input)
         return out
