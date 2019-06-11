@@ -19,6 +19,7 @@ class ReLUCorr(nn.ReLU):
         self.channelsDiv = args.channelsDiv
         self.eigenVar = args.eigenVar
 
+        self.transformType = args.transformType
 
     def forward(self, input):
 
@@ -43,9 +44,9 @@ class ReLUCorr(nn.ReLU):
                 imProj, mult, add = part_quant(imProj, max=dynMax, min=dynMin,
                                                bitwidth=self.actBitwidth)
 
-            self.act_size = imProj.numel()
-            self.bit_per_entry = shannon_entropy(imProj).item()
-            self.bit_count = self.bit_per_entry * self.act_size
+                self.act_size = imProj.numel()
+                self.bit_per_entry = shannon_entropy(imProj).item()
+                self.bit_count = self.bit_per_entry * self.act_size
 
             if self.actBitwidth < 30:
                 imProj = imProj * mult + add

@@ -43,7 +43,8 @@ def parseArgs():
     parser.add_argument('--workers', default=2, type=int, help='Number of data loading workers (default: 2)')
     parser.add_argument('--print_freq', default=50, type=int, help='Number of batches between log messages')
     parser.add_argument('--pre-trained', default='preTrained', type=str, help='location of the pretrained models')
-
+    parser.add_argument('--onlyInference', action='store_true',
+                        help='If use only inference')
     # optimization
     parser.add_argument('--lr', type=float, default=0.1, help='The learning rate.')
     parser.add_argument('--momentum', '-m', type=float, default=0.9, help='Momentum.')
@@ -172,25 +173,28 @@ if __name__ == '__main__':
             mlflow.log_param(p, params[p])
         start_epoch = 0
         minCorrLoss = 10000
+
         for epoch in trange(start_epoch, args.epochs):
             scheduler.step()
             testTotalLoss, testCELoss, testCorrLoss, testTop1, testTop5, avgEntropy = runTest(model, args, testLoader,
                                                                                               epoch,
                                                                                               criterion, logging)
-            trainTotalLoss, trainCELoss, trainCorrLoss, trainTop1, trainTop5 = runTrain(model, args, trainLoader, epoch,
-                                                                                        optimizer, criterion, logging)
+            if not args.onlyInference:
+                trainTotalLoss, trainCELoss, trainCorrLoss, trainTop1, trainTop5 = runTrain(model, args, trainLoader, epoch,
+                                                                                            optimizer, criterion, logging)
 
             if mlflow.active_run() is not None:
                 mlflow.log_metric('Test top1', testTop1)
                 mlflow.log_metric('Test top5', testTop5)
-                mlflow.log_metric('Train top1', trainTop1)
-                mlflow.log_metric('Train top5', trainTop5)
+                if not args.onlyInference:
+                    mlflow.log_metric('Train top1', trainTop1)
+                    mlflow.log_metric('Train top5', trainTop5)
+                    mlflow.log_metric('trainTotalLoss', trainTotalLoss)
+                    mlflow.log_metric('trainCELoss', trainCELoss)
+                    mlflow.log_metric('trainCorrLoss', trainCorrLoss)
                 mlflow.log_metric('TestTotalloss', testTotalLoss)
                 mlflow.log_metric('testCELoss', testCELoss)
                 mlflow.log_metric('testCorrLoss', testCorrLoss)
-                mlflow.log_metric('trainTotalLoss', trainTotalLoss)
-                mlflow.log_metric('trainCELoss', trainCELoss)
-                mlflow.log_metric('trainCorrLoss', trainCorrLoss)
                 mlflow.log_metric('avgEntropy', avgEntropy)
             # Save checkpoint.
             if minCorrLoss > testCorrLoss:
