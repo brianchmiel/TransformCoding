@@ -1,0 +1,36 @@
+{
+    "MicroBlockSz": 1, 
+    "actBitwidth": 32, 
+    "batch": 250, 
+    "channelsDiv": 1, 
+    "data": "../FeaturesCompress/data", 
+    "dataset": "cifar10", 
+    "decay": 4e-05, 
+    "device": "cuda:7", 
+    "eigenVar": 1.0, 
+    "epochs": 200, 
+    "folderName": "resnet20_eye_32_32_1_1_20190604-110227", 
+    "gamma": 0.1, 
+    "gpu": [
+        7
+    ], 
+    "jsonPath": "/home/brianch/TransformCoding/results/resnet20_eye_32_32_1_1_20190604-110227/args.txt", 
+    "lr": 0.1, 
+    "model": "resnet20", 
+    "momentum": 0.9, 
+    "nClasses": 10, 
+    "print_freq": 50, 
+    "regul": 0, 
+    "save": "/home/brianch/TransformCoding/results/resnet20_eye_32_32_1_1_20190604-110227", 
+    "schedule": [
+        20, 
+        50, 
+        100
+    ], 
+    "seed": 3393, 
+    "time": "20190604-110227", 
+    "transform": false, 
+    "transformType": "eye", 
+    "weightBitwidth": 32, 
+    "workers": 2
+}
