@@ -1,3 +1,5 @@
+import os
+
 import torch.nn as nn
 import torch.utils.model_zoo as model_zoo
 import torch
@@ -239,8 +241,8 @@ class ResNetCifar(nn.Module):
         x = self.fc(x)  # Dense
         return x
 
-    def loadPreTrained(self):
-        preTrainedDir = '/home/brianch/TransformCoding/preTrained/' + self.name  + '/ckpt.t7'
+    def loadPreTrained(self, pre_trained):
+        preTrainedDir = os.path.join(pre_trained, self.name, 'ckpt.t7')
         checkpoint = torch.load(preTrainedDir)
         self.load_state_dict(checkpoint['net'])
 

@@ -36,7 +36,7 @@ def parseArgs():
 
     parser = argparse.ArgumentParser(description='Transform Coding')
     #general
-    parser.add_argument('--data', type=str, help='location of the data corpus')
+    parser.add_argument('--data', type=str, required=True, help='location of the data corpus')
     parser.add_argument('--dataset', metavar='DATASET', default='cifar10', choices=datasets.keys(), help='dataset name')
 
     parser.add_argument('--gpu', type=str, default='0', help='gpu device id, e.g. 0,1,3')
@@ -46,6 +46,8 @@ def parseArgs():
     parser.add_argument('--exp', type=str, default='', help='experiment name')
     parser.add_argument('--workers', default=2, type=int, help='Number of data loading workers (default: 2)')
     parser.add_argument('--print_freq', default=50, type=int, help='Number of batches between log messages')
+    parser.add_argument('--pre-trained', default='/home/brianch/TransformCoding/preTrained/', type=str,  help='location of the pretrained models')
+
     #optimization
     parser.add_argument('--lr', type=float, default=0.1, help='The learning rate.')
     parser.add_argument('--momentum', '-m', type=float, default=0.9, help='Momentum.')
@@ -61,7 +63,7 @@ def parseArgs():
                         help='Quantization activation bitwidth (default: 32)')
     parser.add_argument('--weightBitwidth', default=32, type=int,
                         help='Quantization weight bitwidth (default: 32)')
-    parser.add_argument('--model', '-a', metavar='MODEL', choices=modelNames,
+    parser.add_argument('--model', '-a', metavar='MODEL', required=True, choices=modelNames,
                         help='model architecture: ' + ' | '.join(modelNames))
     parser.add_argument('--MicroBlockSz', type=int, default=1, help='Size of block in H*W')
     parser.add_argument('--channelsDiv', type=int, default=1, help='How many parts divide the number of channels')
@@ -148,7 +150,7 @@ if __name__ == '__main__':
 
     # Load preTrained weights.
     logging.info('==> Resuming from checkpoint..')
-    model.loadPreTrained()
+    model.loadPreTrained(args.pre_trained)
     model = model.cuda()
 
     criterion = corrLoss(args).cuda()

@@ -1,0 +1,5 @@
+torch>=1
+tqdm
+scikit-learn
+torchvision>=0.2
+mlflow
