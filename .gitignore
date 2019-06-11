@@ -104,6 +104,8 @@ ENV/
 .vscode/
 
 .idea/
+data/
+mlruns_mxt/
 
 # workfiles
 *.csv

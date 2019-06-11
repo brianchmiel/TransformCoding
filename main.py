@@ -46,7 +46,7 @@ def parseArgs():
     parser.add_argument('--exp', type=str, default='', help='experiment name')
     parser.add_argument('--workers', default=2, type=int, help='Number of data loading workers (default: 2)')
     parser.add_argument('--print_freq', default=50, type=int, help='Number of batches between log messages')
-    parser.add_argument('--pre-trained', default='/home/brianch/TransformCoding/preTrained/', type=str,  help='location of the pretrained models')
+    parser.add_argument('--pre-trained', default='preTrained', type=str,  help='location of the pretrained models')
 
     #optimization
     parser.add_argument('--lr', type=float, default=0.1, help='The learning rate.')
@@ -150,7 +150,7 @@ if __name__ == '__main__':
 
     # Load preTrained weights.
     logging.info('==> Resuming from checkpoint..')
-    model.loadPreTrained(args.pre_trained)
+    model.loadPreTrained(args.pre_trained, 'cpu')
     model = model.cuda()
 
     criterion = corrLoss(args).cuda()

@@ -241,9 +241,9 @@ class ResNetCifar(nn.Module):
         x = self.fc(x)  # Dense
         return x
 
-    def loadPreTrained(self, pre_trained):
+    def loadPreTrained(self, pre_trained, device):
         preTrainedDir = os.path.join(pre_trained, self.name, 'ckpt.t7')
-        checkpoint = torch.load(preTrainedDir)
+        checkpoint = torch.load(preTrainedDir, map_location=device)
         self.load_state_dict(checkpoint['net'])
 
 
