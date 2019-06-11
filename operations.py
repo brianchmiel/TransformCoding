@@ -1,4 +1,3 @@
-
 import numpy as np
 import torch
 import torch.nn as nn
@@ -10,16 +9,11 @@ from utils.huffman import huffman_encode
 from utils.meters import measureCorrBetweenChannels
 
 
-
-
-
-
 class ReLUCorr(nn.ReLU):
     def __init__(self, inplace=False):
         super(ReLUCorr, self).__init__(inplace)
         self.corr = 0
         self.actBitwidth = 8
-
 
     def forward(self, input):
 
@@ -48,24 +42,19 @@ class ReLUCorr(nn.ReLU):
             self.bit_per_entry = shannon_entropy(imProj).item()
             self.bit_count = self.bit_per_entry * self.act_size
 
-
             if self.actBitwidth < 30:
                 imProj = imProj * mult + add
 
             imProj = torch.matmul(u, imProj)
 
-
             # Bias Correction
             imProj = imProj - torch.mean(imProj, dim=1, keepdim=True)
-
-
 
             # return original mean
             imProj = imProj + mn
 
             # return to general
             input = featuresReshapeBack(imProj, N, C, H, W, 1, 1)
-
 
         out = super(ReLUCorr, self).forward(input)
         return out
@@ -78,7 +67,6 @@ def quantize1d_kmeans(x, num_bits=8, n_jobs=-1):
     x_kmeans = kmeans.fit_predict(x)
     q_kmeans = np.array([kmeans.cluster_centers_[i] for i in x_kmeans])
     return q_kmeans.reshape(orig_shape)
-
 
 
 def get_projection_matrix(im, projType, eigenVar):
@@ -110,21 +98,21 @@ def featuresReshape(input, N, C, H, W, microBlockSz, channelsDiv):
         channelsDiv = C
     assert (C % channelsDiv == 0)
     extra = 0
-    if H % microBlockSz > 0 :
+    if H % microBlockSz > 0:
         extra = H % microBlockSz
-        hExtra = torch.zeros(N,C,extra,W).cuda()
-        input = torch.cat((input,hExtra),dim=2)
-        wExtra = torch.zeros(N,C,H+extra,extra).cuda()
+        hExtra = torch.zeros(N, C, extra, W).cuda()
+        input = torch.cat((input, hExtra), dim=2)
+        wExtra = torch.zeros(N, C, H + extra, extra).cuda()
         input = torch.cat((input, wExtra), dim=3)
-
 
     Ct = C // channelsDiv
     featureSize = microBlockSz * microBlockSz * Ct
 
-    input = input.view(-1, Ct, H+extra, W+extra)  # N' x Ct x H x W
+    input = input.view(-1, Ct, H + extra, W + extra)  # N' x Ct x H x W
     input = input.permute(0, 2, 3, 1)  # N' x H x W x Ct
     input = input.contiguous().view(-1, microBlockSz, W + extra, Ct).permute(0, 2, 1, 3)  # N'' x W x microBlockSz x Ct
-    input = input.contiguous().view(-1, microBlockSz, microBlockSz, Ct).permute(0, 3, 2,1)  # N''' x Ct x microBlockSz x microBlockSz
+    input = input.contiguous().view(-1, microBlockSz, microBlockSz, Ct).permute(0, 3, 2,
+                                                                                1)  # N''' x Ct x microBlockSz x microBlockSz
 
     return input.contiguous().view(-1, featureSize).t()
 
@@ -141,15 +129,15 @@ def featuresReshapeBack(input, N, C, H, W, microBlockSz, channelsDiv):
     input = input.t()
     Ct = C // channelsDiv
 
-    input = input.view(-1, Ct, microBlockSz, microBlockSz).permute(0, 3, 2,1)  # N'''  x microBlockSz x microBlockSz x Ct
-    input = input.contiguous().view(-1, H + extra, microBlockSz, Ct).permute(0, 2, 1,3)  # N''  x microBlockSz x H x Ct
+    input = input.view(-1, Ct, microBlockSz, microBlockSz).permute(0, 3, 2,
+                                                                   1)  # N'''  x microBlockSz x microBlockSz x Ct
+    input = input.contiguous().view(-1, H + extra, microBlockSz, Ct).permute(0, 2, 1, 3)  # N''  x microBlockSz x H x Ct
     input = input.contiguous().view(-1, H + extra, W + extra, Ct).permute(0, 3, 1, 2)  # N' x Ct x H x W X
     input = input.contiguous().view(N, C, H + extra, W + extra)  # N x C x H x W
     if extra > 0:
-        input = input[:,:,:-extra,:-extra]
+        input = input[:, :, :-extra, :-extra]
 
     return input
-
 
 
 class ReLuPCA(nn.Module):
@@ -170,13 +158,11 @@ class ReLuPCA(nn.Module):
         else:
             self.relu = nn.ReLU(inplace=True)
 
-
-
     def forward(self, input):
 
         if self.transform:
             N, C, H, W = input.shape  # N x C x H x W
-            im = featuresReshape(input, N, C, H, W, self.microBlockSz,self.channelsDiv)
+            im = featuresReshape(input, N, C, H, W, self.microBlockSz, self.channelsDiv)
 
             self.channels = im.shape[0]
 
@@ -197,7 +183,6 @@ class ReLuPCA(nn.Module):
             mult = torch.zeros(1).to(imProj)
             add = torch.zeros(1).to(imProj)
 
-
             dynMax = torch.max(imProj)
             dynMin = torch.min(imProj)
 
@@ -208,7 +193,7 @@ class ReLuPCA(nn.Module):
             self.act_size = imProj.numel()
             self.bit_per_entry = shannon_entropy(imProj).item()
             self.bit_count = self.bit_per_entry * self.act_size
-           # if False: #add if want to show huffman code in additional to theoretical entropy
+            # if False: #add if want to show huffman code in additional to theoretical entropy
             self.bit_countH = huffman_encode(imProj)
             self.bit_per_entryH = self.bit_countH / self.act_size
 
@@ -225,13 +210,12 @@ class ReLuPCA(nn.Module):
             imProj = imProj + mn
 
             # return to general
-            input = featuresReshapeBack(imProj, N, C, H, W, self.microBlockSz,self.channelsDiv)
+            input = featuresReshapeBack(imProj, N, C, H, W, self.microBlockSz, self.channelsDiv)
 
             self.collectStats = False
 
         input = self.relu(input)
         return input
-
 
 
 class ConvBNPCA(nn.Conv2d):
@@ -249,7 +233,6 @@ class ConvBNPCA(nn.Conv2d):
         self.microBlockSz = args.MicroBlockSz
         self.channelsDiv = args.channelsDiv
         self.eigenVar = args.eigenVar
-
 
     def get_stats_params(self, im):
         self.u, self.s = get_projection_matrix(im, self.transformType, self.eigenVar)
@@ -278,8 +261,7 @@ class ConvBNPCA(nn.Conv2d):
                               self.padding, self.dilation, self.groups)
                 N, C, H, W = im.shape  # N x C x H x W
 
-
-                im = featuresReshape(im, N, C, H, W, self.microBlockSz,self.channelsDiv)
+                im = featuresReshape(im, N, C, H, W, self.microBlockSz, self.channelsDiv)
                 self.mn = torch.mean(im, dim=1, keepdim=True)
 
                 # Centering the data
@@ -291,24 +273,22 @@ class ConvBNPCA(nn.Conv2d):
                 # conv + bn if exists + projection
                 im2 = F.conv2d(input, self.weight, self.bias, self.stride,
                                self.padding, self.dilation, self.groups)
-                imProj2 = featuresReshape(im2, N, C, H, W, self.microBlockSz,self.channelsDiv)
+                imProj2 = featuresReshape(im2, N, C, H, W, self.microBlockSz, self.channelsDiv)
                 assert (torch.max(torch.abs(imProj - imProj2)) < 0.1)
             else:
                 # conv + bn if exists + projection
                 im = F.conv2d(input, self.weight, self.bias, self.stride,
                               self.padding, self.dilation, self.groups)
                 N, C, H, W = im.shape  # N x C x H x W
-                imProj = featuresReshape(im, N, C, H, W, self.microBlockSz,self.channelsDiv)
+                imProj = featuresReshape(im, N, C, H, W, self.microBlockSz, self.channelsDiv)
 
             mult = torch.zeros(1).to(imProj)
             add = torch.zeros(1).to(imProj)
-
 
             self.collectStats = False
 
             dynMax = torch.max(imProj)
             dynMin = torch.min(imProj)
-
 
             if self.actBitwidth < 30:
                 imProj, mult, add = part_quant(imProj, max=dynMax, min=dynMin,
@@ -317,7 +297,7 @@ class ConvBNPCA(nn.Conv2d):
             self.act_size = imProj.numel()
             self.bit_per_entry = shannon_entropy(imProj).item()
             self.bit_count = self.bit_per_entry * self.act_size
-            if False: #add if want to show huffman code in additional to theoretical entropy
+            if False:  # add if want to show huffman code in additional to theoretical entropy
                 self.bit_countH = huffman_encode(imProj)
                 self.bit_per_entryH = self.bit_countH / self.act_size
 
@@ -329,14 +309,13 @@ class ConvBNPCA(nn.Conv2d):
             # return original mean
             imProj = imProj + self.mn
 
-            input = featuresReshapeBack(imProj, N, C, H, W, self.microBlockSz,self.channelsDiv)
+            input = featuresReshapeBack(imProj, N, C, H, W, self.microBlockSz, self.channelsDiv)
 
         else:
             input = F.conv2d(input, self.weight, self.bias, self.stride,
                              self.padding, self.dilation, self.groups)
 
         return input
-
 
 
 def part_quant(x, max, min, bitwidth):
@@ -347,7 +326,6 @@ def part_quant(x, max, min, bitwidth):
     else:
         q_x = x
         return q_x, 1, 0
-
 
 
 class Round(torch.autograd.Function):

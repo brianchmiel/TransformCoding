@@ -1,9 +1,4 @@
 from torch.nn import CrossEntropyLoss, Module
-import torch
-
-
-
-
 
 
 class corrLoss(Module):
@@ -12,16 +7,11 @@ class corrLoss(Module):
         self.regul = args.regul
         self.crossEntropyLoss = CrossEntropyLoss().cuda()
 
-
-
     def forward(self, input, target, modelCorr):
         crossEntropyLoss = self.crossEntropyLoss(input, target)
         corrLoss = 1 / modelCorr
         totalLoss = crossEntropyLoss + (self.regul * corrLoss)
         return totalLoss, crossEntropyLoss, corrLoss
-
-
-
 
 # engine.hooks.onBackward = function(state)
 #   # OrthoReg

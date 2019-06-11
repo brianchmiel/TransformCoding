@@ -1,12 +1,13 @@
 from collections import namedtuple
+
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import torch.utils.model_zoo as model_zoo
+
 from operations import ReLuPCA
 
 __all__ = ['Inception3']
-
 
 model_urls = {
     # Inception v3 ported from TensorFlow
@@ -14,9 +15,6 @@ model_urls = {
 }
 
 _InceptionOuputs = namedtuple('InceptionOuputs', ['logits', 'aux_logits'])
-
-
-
 
 
 class Inception3(nn.Module):
@@ -60,12 +58,10 @@ class Inception3(nn.Module):
                 nn.init.constant_(m.weight, 1)
                 nn.init.constant_(m.bias, 0)
 
-
     def loadPreTrained(self):
         self.load_state_dict(model_zoo.load_url(model_urls['inception_v3_google']))
         if not self.aux_logits:
             del self.AuxLogits
-
 
     def forward(self, x):
         if self.transform_input:
@@ -129,7 +125,7 @@ class Inception3(nn.Module):
 
 class InceptionA(nn.Module):
 
-    def __init__(self, args,  in_channels, pool_features):
+    def __init__(self, args, in_channels, pool_features):
         super(InceptionA, self).__init__()
         self.branch1x1 = BasicConv2d(args, in_channels, 64, kernel_size=1)
 
@@ -223,7 +219,7 @@ class InceptionC(nn.Module):
 
 class InceptionD(nn.Module):
 
-    def __init__(self, args,  in_channels):
+    def __init__(self, args, in_channels):
         super(InceptionD, self).__init__()
         self.branch3x3_1 = BasicConv2d(args, in_channels, 192, kernel_size=1)
         self.branch3x3_2 = BasicConv2d(args, 192, 320, kernel_size=3, stride=2)

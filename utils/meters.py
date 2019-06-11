@@ -1,5 +1,6 @@
 import torch
 
+
 class AverageMeter(object):
     """Computes and stores the average and current value"""
 
@@ -109,11 +110,11 @@ def measureCorrBetweenChannels(tensor):
     # Centering the data
     tensor = tensor - torch.mean(tensor, dim=1, keepdim=True)
 
-    #stds
+    # stds
     stds = torch.std(tensor, dim=1, keepdim=True)
-    stds = torch.matmul(stds,stds.t())
+    stds = torch.matmul(stds, stds.t())
 
-    tensor = torch.matmul(tensor,tensor.t()) / tensor.shape[1]
+    tensor = torch.matmul(tensor, tensor.t()) / tensor.shape[1]
     tensor = torch.div(tensor, stds + 1e-10)
 
     return (torch.sum(torch.abs(tensor)) - torch.sum(torch.abs(torch.diag(tensor)))) / tensor.numel()

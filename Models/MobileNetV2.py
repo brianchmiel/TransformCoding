@@ -1,13 +1,16 @@
-import torch.nn as nn
 import math
+
 import torch
+import torch.nn as nn
+
 from operations import ReLuPCA
+
 
 def conv_bn(inp, oup, stride, args):
     return nn.Sequential(
         nn.Conv2d(inp, oup, 3, stride, 1, bias=False),
         nn.BatchNorm2d(oup),
-        ReLuPCA(args, mxRelu6= True) #nn.ReLU6(inplace=True)
+        ReLuPCA(args, mxRelu6=True)  # nn.ReLU6(inplace=True)
     )
 
 
@@ -15,7 +18,7 @@ def conv_1x1_bn(inp, oup, args):
     return nn.Sequential(
         nn.Conv2d(inp, oup, 1, 1, 0, bias=False),
         nn.BatchNorm2d(oup),
-        ReLuPCA(args, mxRelu6= True) #nn.ReLU6(inplace=True)
+        ReLuPCA(args, mxRelu6=True)  # nn.ReLU6(inplace=True)
     )
 
 
@@ -33,7 +36,7 @@ class InvertedResidual(nn.Module):
                 # dw
                 nn.Conv2d(hidden_dim, hidden_dim, 3, stride, 1, groups=hidden_dim, bias=False),
                 nn.BatchNorm2d(hidden_dim),
-                ReLuPCA(args, mxRelu6= True), #nn.ReLU6(inplace=True)
+                ReLuPCA(args, mxRelu6=True),  # nn.ReLU6(inplace=True)
                 # pw-linear
                 nn.Conv2d(hidden_dim, oup, 1, 1, 0, bias=False),
                 nn.BatchNorm2d(oup),
@@ -43,7 +46,7 @@ class InvertedResidual(nn.Module):
                 # pw
                 nn.Conv2d(inp, hidden_dim, 1, 1, 0, bias=False),
                 nn.BatchNorm2d(hidden_dim),
-                ReLuPCA(args, mxRelu6= True), #nn.ReLU6(inplace=True)
+                ReLuPCA(args, mxRelu6=True),  # nn.ReLU6(inplace=True)
                 # dw
                 nn.Conv2d(hidden_dim, hidden_dim, 3, stride, 1, groups=hidden_dim, bias=False),
                 nn.BatchNorm2d(hidden_dim),

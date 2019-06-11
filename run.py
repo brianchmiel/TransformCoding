@@ -1,12 +1,12 @@
-import os
 import time
+
 import numpy as np
 import torch
-import tqdm
+
 from utils.meters import AverageMeter, accuracy
 
 
-def runTrain(model, args, trainLoader, epoch,optimizer,criterion,logging):
+def runTrain(model, args, trainLoader, epoch, optimizer, criterion, logging):
     model.train()
     batch_time = AverageMeter()
     totalLosses = AverageMeter()
@@ -25,8 +25,8 @@ def runTrain(model, args, trainLoader, epoch,optimizer,criterion,logging):
         #             corr = torch.cat((corr, m.corr))
         #         else:
         #             corr = m.corr
-        corr = torch.sum(torch.stack([m.corr for m in model.modules() if hasattr(m,"corr")]))
-        totalLoss, crossEntropyLoss, corrLoss = criterion(out, targets,corr)
+        corr = torch.sum(torch.stack([m.corr for m in model.modules() if hasattr(m, "corr")]))
+        totalLoss, crossEntropyLoss, corrLoss = criterion(out, targets, corr)
         totalLoss.backward()
         optimizer.step()
 
@@ -45,20 +45,19 @@ def runTrain(model, args, trainLoader, epoch,optimizer,criterion,logging):
         if batch_idx % args.print_freq == 0:
             logging.info('Epoch Train: [{}]\t'
                          'Train: [{}/{}]\t'
-                  'Time {batch_time.val:.3f} ({batch_time.avg:.3f})\t'
-                  'Total Loss {loss.val:.4f} ({loss.avg:.4f})\t'
-                  'Cross Entropy Loss {CEloss.val:.4f} ({CEloss.avg:.4f})\t'
-                  'Correlation Loss {Corrloss.val:.4f} ({Corrloss.avg:.4f})\t'
-                  'Prec@1 {top1.val:.3f} ({top1.avg:.3f})\t'
-                  'Prec@5 {top5.val:.3f} ({top5.avg:.3f})'.format(
-                epoch, batch_idx+1, len(trainLoader), batch_time=batch_time, loss=totalLosses,
+                         'Time {batch_time.val:.3f} ({batch_time.avg:.3f})\t'
+                         'Total Loss {loss.val:.4f} ({loss.avg:.4f})\t'
+                         'Cross Entropy Loss {CEloss.val:.4f} ({CEloss.avg:.4f})\t'
+                         'Correlation Loss {Corrloss.val:.4f} ({Corrloss.avg:.4f})\t'
+                         'Prec@1 {top1.val:.3f} ({top1.avg:.3f})\t'
+                         'Prec@5 {top5.val:.3f} ({top5.avg:.3f})'.format(
+                epoch, batch_idx + 1, len(trainLoader), batch_time=batch_time, loss=totalLosses,
                 CEloss=ceLosses, Corrloss=corrLosses, top1=top1, top5=top5))
 
-    return totalLosses.avg, ceLosses.avg, corrLosses.avg,  top1.avg, top5.avg
+    return totalLosses.avg, ceLosses.avg, corrLosses.avg, top1.avg, top5.avg
 
 
-def runTest(model, args, testLoader, epoch,criterion,logging):
-
+def runTest(model, args, testLoader, epoch, criterion, logging):
     model.eval()
     batch_time = AverageMeter()
     totalLosses = AverageMeter()
@@ -90,15 +89,14 @@ def runTest(model, args, testLoader, epoch,criterion,logging):
     act_count = np.sum(np.array([x.act_size for x in model.modules() if hasattr(x, "act_size")]))
     avgEntropy = float(entropy) / len(testLoader) / act_count
     logging.info('Epoch Test: [{}]\t'
-          'Time ({batch_time.avg:.3f})\t'
-          'Total Loss {loss.val:.4f} ({loss.avg:.4f})\t'
-          'Cross Entropy Loss {CEloss.val:.4f} ({CEloss.avg:.4f})\t'
-          'Correlation Loss {Corrloss.val:.4f} ({Corrloss.avg:.4f})\t'
-          'Entropy {ent} \t'       
-          'Prec@1 {top1.val:.3f} ({top1.avg:.3f})\t'
-          'Prec@5 {top5.val:.3f} ({top5.avg:.3f})'.format(
-        epoch,  batch_time=batch_time, loss=totalLosses,
-        CEloss=ceLosses, Corrloss=corrLosses, ent = avgEntropy ,top1=top1, top5=top5))
+                 'Time ({batch_time.avg:.3f})\t'
+                 'Total Loss {loss.val:.4f} ({loss.avg:.4f})\t'
+                 'Cross Entropy Loss {CEloss.val:.4f} ({CEloss.avg:.4f})\t'
+                 'Correlation Loss {Corrloss.val:.4f} ({Corrloss.avg:.4f})\t'
+                 'Entropy {ent} \t'
+                 'Prec@1 {top1.val:.3f} ({top1.avg:.3f})\t'
+                 'Prec@5 {top5.val:.3f} ({top5.avg:.3f})'.format(
+        epoch, batch_time=batch_time, loss=totalLosses,
+        CEloss=ceLosses, Corrloss=corrLosses, ent=avgEntropy, top1=top1, top5=top5))
 
-    return totalLosses.avg, ceLosses.avg, corrLosses.avg, top1.avg, top5.avg,avgEntropy
-
+    return totalLosses.avg, ceLosses.avg, corrLosses.avg, top1.avg, top5.avg, avgEntropy

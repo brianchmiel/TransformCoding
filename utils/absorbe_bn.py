@@ -47,7 +47,7 @@ def absorb_bn(module, bn_module, remove_bn=True, verbose=False):
 
         if verbose:
             print('BN module %s was asborbed into layer %s' %
-                         (bn_module, module))
+                  (bn_module, module))
 
 
 def is_bn(m):

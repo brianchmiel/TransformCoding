@@ -1,9 +1,9 @@
 import os
 
+import torch
 import torch.nn as nn
 import torch.utils.model_zoo as model_zoo
-import torch
-from operations import ReLuPCA
+
 # from torch.nn import nn.ReLU as ReLU
 from operations import ReLUCorr as ReLU
 
@@ -36,18 +36,17 @@ class BasicBlock(nn.Module):
 
         self.conv1 = conv3x3(in_planes, planes, stride)
         self.bn1 = nn.BatchNorm2d(planes)
-        self.relu1 = ReLU(inplace=True) #ReLuPCA(args, planes)
+        self.relu1 = ReLU(inplace=True)  # ReLuPCA(args, planes)
 
         self.conv2 = conv3x3(planes, planes)
         self.bn2 = nn.BatchNorm2d(planes)
-        self.relu2 = ReLU(inplace=True) #ReLuPCA(args, planes)
+        self.relu2 = ReLU(inplace=True)  # ReLuPCA(args, planes)
 
         self.downsample = downsample
 
         self.stride = stride
 
     def forward(self, x):
-
         residue = x
 
         out = self.relu1(self.bn1(self.conv1(x)))
@@ -62,8 +61,6 @@ class BasicBlock(nn.Module):
         return out
 
 
-
-
 class Bottleneck(nn.Module):
     expansion = 4
 
@@ -71,13 +68,13 @@ class Bottleneck(nn.Module):
         super(Bottleneck, self).__init__()
         self.conv1 = conv1x1(inplanes, planes)
         self.bn1 = nn.BatchNorm2d(planes)
-        self.relu1 = ReLU(inplace=True) #ReLuPCA(args, planes)
+        self.relu1 = ReLU(inplace=True)  # ReLuPCA(args, planes)
         self.conv2 = conv3x3(planes, planes, stride)
         self.bn2 = nn.BatchNorm2d(planes)
-        self.relu2 = ReLU(inplace=True) #ReLuPCA(args, planes)
+        self.relu2 = ReLU(inplace=True)  # ReLuPCA(args, planes)
         self.conv3 = conv1x1(planes, planes * self.expansion)
         self.bn3 = nn.BatchNorm2d(planes * self.expansion)
-        self.relu3 = ReLU(inplace=True) #ReLuPCA(args, planes)
+        self.relu3 = ReLU(inplace=True)  # ReLuPCA(args, planes)
         self.downsample = downsample
         self.stride = stride
 
@@ -88,7 +85,7 @@ class Bottleneck(nn.Module):
 
         out = self.relu2(self.bn2(self.conv2(out)))
 
-        out =self.bn3(self.conv3(out))
+        out = self.bn3(self.conv3(out))
 
         if self.downsample is not None:
             identity = self.downsample(x)
@@ -97,7 +94,6 @@ class Bottleneck(nn.Module):
         out = self.relu3(out)
 
         return out
-
 
 
 class ResNetImagenet(nn.Module):
@@ -110,7 +106,7 @@ class ResNetImagenet(nn.Module):
         self.conv1 = nn.Conv2d(3, 64, kernel_size=7, stride=2, padding=3,
                                bias=False)
         self.bn1 = nn.BatchNorm2d(64)
-        self.relu = ReLU(inplace=True) #ReLuPCA(args, planes)
+        self.relu = ReLU(inplace=True)  # ReLuPCA(args, planes)
         self.maxpool = nn.MaxPool2d(kernel_size=3, stride=2, padding=1)
         self.layer1 = self._make_layer(args, block, 64, layers[0])
         self.layer2 = self._make_layer(args, block, 128, layers[1], stride=2)
@@ -118,8 +114,6 @@ class ResNetImagenet(nn.Module):
         self.layer4 = self._make_layer(args, block, 512, layers[3], stride=2)
         self.avgpool = nn.AdaptiveAvgPool2d((1, 1))
         self.fc = nn.Linear(512 * block.expansion, num_classes)
-
-
 
     def _make_layer(self, args, block, planes, blocks, stride=1):
         downsample = None
@@ -158,8 +152,6 @@ class ResNetImagenet(nn.Module):
         self.load_state_dict(model_zoo.load_url(model_urls[self.name]), False)
 
 
-
-
 def ResNet18(args):
     model = ResNetImagenet(BasicBlock, [2, 2, 2, 2], args)
     return model
@@ -169,9 +161,11 @@ def ResNet50(args):
     model = ResNetImagenet(Bottleneck, [3, 4, 6, 3], args)
     return model
 
+
 def ResNet101(args):
     model = ResNetImagenet(Bottleneck, [3, 4, 23, 3], args)
     return model
+
 
 # ===================================
 # ============== CIFAR ==============
@@ -193,7 +187,7 @@ class ResNetCifar(nn.Module):
 
         self.conv = nn.Conv2d(3, 64, kernel_size=3, stride=1, padding=1, bias=False)
         self.bn = nn.BatchNorm2d(64)
-        self.relu = ReLU(inplace=True) # ReLuPCA(args, 64)
+        self.relu = ReLU(inplace=True)  # ReLuPCA(args, 64)
 
         self.layer1 = self._make_layer(args, block, fmaps[0], n, stride=1)
         self.layer2 = self._make_layer(args, block, fmaps[1], n, stride=2)
@@ -249,6 +243,7 @@ class ResNetCifar(nn.Module):
 
 def ResNet20(args):
     return ResNetCifar(depth=20, args=args)
+
 
 def ResNet56(args):
     return ResNetCifar(depth=56, args=args)

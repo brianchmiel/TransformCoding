@@ -1,41 +1,37 @@
 from __future__ import print_function
-import torch
+
 import argparse
 import logging
 import os
-import time
 import random
-from datetime import datetime
+import time
 from inspect import getfile, currentframe
 from os import getpid, environ
 from os.path import dirname, abspath
 from socket import gethostname
 from sys import exit, argv
 
-import numpy as np
+import mlflow
+import torch
 import torch.backends.cudnn as cudnn
-
 from torch import manual_seed as torch_manual_seed
 from torch.cuda import is_available, set_device
 from torch.cuda import manual_seed as cuda_manual_seed
-from torch.nn import CrossEntropyLoss
 from torch.optim.lr_scheduler import MultiStepLR
 from tqdm import trange
 
-
 import Models
-from run import runTrain, runTest
-from utils.dataset import loadModelNames,  saveArgsToJSON, TqdmLoggingHandler, load_data, loadDatasets
-from quantizeWeights import quantizeWeights
 from corrLoss import corrLoss
-import mlflow
+from run import runTrain, runTest
+from utils.dataset import loadModelNames, saveArgsToJSON, TqdmLoggingHandler, load_data, loadDatasets
+
 
 def parseArgs():
     modelNames = loadModelNames()
     datasets = loadDatasets()
 
     parser = argparse.ArgumentParser(description='Transform Coding')
-    #general
+    # general
     parser.add_argument('--data', type=str, required=True, help='location of the data corpus')
     parser.add_argument('--dataset', metavar='DATASET', default='cifar10', choices=datasets.keys(), help='dataset name')
 
@@ -46,19 +42,18 @@ def parseArgs():
     parser.add_argument('--exp', type=str, default='', help='experiment name')
     parser.add_argument('--workers', default=2, type=int, help='Number of data loading workers (default: 2)')
     parser.add_argument('--print_freq', default=50, type=int, help='Number of batches between log messages')
-    parser.add_argument('--pre-trained', default='preTrained', type=str,  help='location of the pretrained models')
+    parser.add_argument('--pre-trained', default='preTrained', type=str, help='location of the pretrained models')
 
-    #optimization
+    # optimization
     parser.add_argument('--lr', type=float, default=0.1, help='The learning rate.')
     parser.add_argument('--momentum', '-m', type=float, default=0.9, help='Momentum.')
     parser.add_argument('--decay', '-d', type=float, default=4e-5, help='Weight decay (L2 penalty).')
     parser.add_argument('--gamma', type=float, default=0.1, help='LR is multiplied by gamma at scheduled epochs.')
-    parser.add_argument('--schedule', type=int, nargs='+', default=[20, 50,100],
+    parser.add_argument('--schedule', type=int, nargs='+', default=[20, 50, 100],
                         help='Decrease learning rate at these epochs.')
     parser.add_argument('--regul', type=float, default=0, help='Regularization strength')
 
-
-    #algorithm
+    # algorithm
     parser.add_argument('--actBitwidth', default=32, type=float,
                         help='Quantization activation bitwidth (default: 32)')
     parser.add_argument('--weightBitwidth', default=32, type=int,
@@ -68,17 +63,16 @@ def parseArgs():
     parser.add_argument('--MicroBlockSz', type=int, default=1, help='Size of block in H*W')
     parser.add_argument('--channelsDiv', type=int, default=1, help='How many parts divide the number of channels')
     parser.add_argument('--eigenVar', type=float, default=1.0, help='EigenVar - should be between 0 to 1')
-    parser.add_argument('--transformType', type=str, default='eye', choices=['eye', 'pca', 'pcaT','pcaQ'],
+    parser.add_argument('--transformType', type=str, default='eye', choices=['eye', 'pca', 'pcaT', 'pcaQ'],
                         help='which projection we do: [eye, pca, pcaQ, pcaT]')
-    parser.add_argument('--transform', action='store_true', help='if use linear transformation, otherwise use regular inference')
-
-
+    parser.add_argument('--transform', action='store_true',
+                        help='if use linear transformation, otherwise use regular inference')
 
     args = parser.parse_args()
     args.nClasses = datasets[args.dataset]
 
-    if args.dataset == 'cifar10' or args.dataset =='cifar100':
-        assert(args.model == 'resnet20' or args.model =='resnet56')
+    if args.dataset == 'cifar10' or args.dataset == 'cifar100':
+        assert (args.model == 'resnet20' or args.model == 'resnet56')
 
     return args
 
@@ -89,13 +83,10 @@ if __name__ == '__main__':
 
     # set number of model output classes
 
-
-    #run only in GPUs
+    # run only in GPUs
     if not is_available():
         print('no gpu device available')
         exit(1)
-
-
 
     # update GPUs list
     if type(args.gpu) is not 'None':
@@ -113,18 +104,15 @@ if __name__ == '__main__':
     cudnn.enabled = True
     cuda_manual_seed(args.seed)
 
-
-
     # create folder
     baseFolder = dirname(abspath(getfile(currentframe())))
     args.time = time.strftime("%Y%m%d-%H%M%S")
-    args.folderName = '{}_{}_{}_{}_{}_{}_{}'.format(args.model, args.transformType, args.actBitwidth, args.weightBitwidth, args.MicroBlockSz,
-                                                 args.channelsDiv, args.time)
+    args.folderName = '{}_{}_{}_{}_{}_{}_{}'.format(args.model, args.transformType, args.actBitwidth,
+                                                    args.weightBitwidth, args.MicroBlockSz,
+                                                    args.channelsDiv, args.time)
     args.save = '{}/results/{}'.format(baseFolder, args.folderName)
     if not os.path.exists(args.save):
         os.makedirs(args.save)
-
-
 
     # save args to JSON
     saveArgsToJSON(args)
@@ -146,8 +134,6 @@ if __name__ == '__main__':
     modelClass = Models.__dict__[args.model]
     model = modelClass(args)
 
-
-
     # Load preTrained weights.
     logging.info('==> Resuming from checkpoint..')
     model.loadPreTrained(args.pre_trained, 'cpu')
@@ -157,7 +143,6 @@ if __name__ == '__main__':
     optimizer = torch.optim.SGD(model.parameters(), args.lr, momentum=args.momentum, weight_decay=args.decay,
                                 nesterov=True)
     scheduler = MultiStepLR(optimizer, milestones=args.schedule, gamma=args.gamma)
-
 
     # log command line
     logging.info('CommandLine: {} PID: {} '
@@ -177,28 +162,23 @@ if __name__ == '__main__':
     #         torch.load(model_path)
     #         logging.info('Loaded preTrained model with weights quantized to {} bits'.format(args.weightBitwidth))
 
-
-
-
-
-
-    #mlflow
+    # mlflow
     mlflow.set_tracking_uri(os.path.join(baseFolder, 'mlruns_mxt'))
 
-    mlflow.set_experiment(args.exp + '_' + args.model )
+    mlflow.set_experiment(args.exp + '_' + args.model)
     with mlflow.start_run(run_name="{}".format(args.folderName)):
         params = vars(args)
         for p in params:
             mlflow.log_param(p, params[p])
         start_epoch = 0
         minCorrLoss = 10000
-        for epoch in trange(start_epoch, args.epochs ):
+        for epoch in trange(start_epoch, args.epochs):
             scheduler.step()
-            testTotalLoss, testCELoss, testCorrLoss, testTop1, testTop5, avgEntropy = runTest(model, args, testLoader, epoch,
-                                                                                  criterion, logging)
-            trainTotalLoss, trainCELoss, trainCorrLoss, trainTop1, trainTop5 = runTrain(model, args, trainLoader, epoch,optimizer,criterion,logging)
-
-
+            testTotalLoss, testCELoss, testCorrLoss, testTop1, testTop5, avgEntropy = runTest(model, args, testLoader,
+                                                                                              epoch,
+                                                                                              criterion, logging)
+            trainTotalLoss, trainCELoss, trainCorrLoss, trainTop1, trainTop5 = runTrain(model, args, trainLoader, epoch,
+                                                                                        optimizer, criterion, logging)
 
             if mlflow.active_run() is not None:
                 mlflow.log_metric('Test top1', testTop1)
@@ -222,4 +202,3 @@ if __name__ == '__main__':
                 }
                 torch.save(state, args.save + '/ckpt.t7')
                 minCorrLoss = testCorrLoss
-
