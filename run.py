@@ -12,6 +12,8 @@ def runTrain(model, args, trainLoader, epoch, optimizer, criterion, logging, use
     totalLosses = AverageMeter()
     ceLosses = AverageMeter()
     corrLosses = AverageMeter()
+    eLosses = AverageMeter()
+    leLosses = AverageMeter()
     top1 = AverageMeter()
     top5 = AverageMeter()
     end = time.time()
@@ -31,12 +33,31 @@ def runTrain(model, args, trainLoader, epoch, optimizer, criterion, logging, use
             ls = totalLoss
         else:
             ls = crossEntropyLoss
+        if args.ea:
+            eloss = None
+            leloss = None
+            cnt = 0
+            for layer in model.modules():
+                if hasattr(layer, 'entropy_loss_value'):
+                    cnt += 1
+                    if eloss is None:
+                        eloss = layer.entropy_loss_value
+                    else:
+                        eloss += layer.entropy_loss_value
+                    if batch_idx % args.print_freq == 0:
+                        print(cnt, layer.entropy_loss_value.item())
+                    leloss = layer.entropy_loss_value.item()
+
+            if eloss is not None:
+                ls += 1e-3 * eloss  # TODO: parameter
+                eLosses.update(eloss.item(), inputs.size(0))
+                leLosses.update(leloss, inputs.size(0))
         ls.backward()
         optimizer.step()
 
         # measure accuracy and record loss
         prec1, prec5 = accuracy(out, targets, topk=(1, 5))
-        totalLosses.update(totalLoss.item(), inputs.size(0))
+        totalLosses.update(ls.item(), inputs.size(0))
         ceLosses.update(crossEntropyLoss.item(), inputs.size(0))
         corrLosses.update(corrLoss.item(), inputs.size(0))
         top1.update(float(prec1), inputs.size(0))
@@ -52,11 +73,13 @@ def runTrain(model, args, trainLoader, epoch, optimizer, criterion, logging, use
                          'Time {batch_time.val:.3f} ({batch_time.avg:.3f})\t'
                          'Total Loss {loss.val:.4f} ({loss.avg:.4f})\t'
                          'Cross Entropy Loss {CEloss.val:.4f} ({CEloss.avg:.4f})\t'
+                         'Entropy Loss {Eloss.val:.4f} ({Eloss.avg:.4f})\t'
+                         'Last layer entropy MSE {lEloss.val:.4f} ({lEloss.avg:.4f})\t'
                          'Correlation Loss {Corrloss.val:.4f} ({Corrloss.avg:.4f})\t'
                          'Prec@1 {top1.val:.3f} ({top1.avg:.3f})\t'
                          'Prec@5 {top5.val:.3f} ({top5.avg:.3f})'.format(
                 epoch, batch_idx + 1, len(trainLoader), batch_time=batch_time, loss=totalLosses,
-                CEloss=ceLosses, Corrloss=corrLosses, top1=top1, top5=top5))
+                CEloss=ceLosses, lEloss=leLosses, Eloss=eLosses, Corrloss=corrLosses, top1=top1, top5=top5))
 
     return totalLosses.avg, ceLosses.avg, corrLosses.avg, top1.avg, top5.avg
 

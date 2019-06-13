@@ -42,6 +42,7 @@ class ReLUCorr(nn.ReLU):
             im = im - mn
             if self.collectStats:
                 self.u, self.s = get_projection_matrix(im, self.transformType, self.eigenVar)
+                self.collectStats = False
 
             imProj = torch.matmul(self.u.t(), im)
 
@@ -53,9 +54,11 @@ class ReLUCorr(nn.ReLU):
                                                bitwidth=self.actBitwidth)
 
                 self.act_size = imProj.numel()
-                self.bit_per_entry = shannon_entropy(imProj).item()
+                self.bit_per_entry = shannon_entropy(imProj)
                 if self.entropy_approximation:
-                    self.entropy_loss_value = self.entropy_loss(self.entropy_net(imProj))
+                    self.entropy_loss_value = self.entropy_loss(self.entropy_net(imProj.transpose(0, 1)),
+                                                                self.bit_per_entry)
+                self.bit_per_entry = self.bit_per_entry.item()
                 self.bit_count = self.bit_per_entry * self.act_size
 
                 imProj = imProj * mult + add
@@ -70,7 +73,29 @@ class ReLUCorr(nn.ReLU):
 
             # return to general
             input = featuresReshapeBack(imProj, N, C, H, W, self.microBlockSz, self.channelsDiv)
+        elif self.entropy_approximation and self.actBitwidth < 30:
+            N, C, H, W = input.shape  # N x C x H x W
+            im = featuresReshape(input, N, C, H, W, self.microBlockSz, self.channelsDiv)
 
+            mn = torch.mean(im, dim=1, keepdim=True)
+            # Centering the data
+            im = im - mn
+            assert torch.isfinite(im).all()
+            if self.collectStats:
+                self.u, self.s = get_projection_matrix(im, self.transformType, self.eigenVar)
+                self.collectStats = False
+
+            imProj = torch.matmul(self.u.t(), im)
+            assert torch.isfinite(imProj).all()
+
+            dynMax = torch.max(imProj)
+            dynMin = torch.min(imProj)
+
+            imProj, mult, add = part_quant(imProj, max=dynMax, min=dynMin, bitwidth=self.actBitwidth)
+
+            self.bit_per_entry = shannon_entropy(imProj)
+            self.entropy_loss_value = self.entropy_loss(self.entropy_net(imProj.transpose(0, 1)), self.bit_per_entry)
+            self.bit_per_entry = self.bit_per_entry.item()
         out = super(ReLUCorr, self).forward(input)
         return out
 
