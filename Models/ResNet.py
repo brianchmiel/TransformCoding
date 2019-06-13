@@ -108,7 +108,7 @@ class ResNetImagenet(nn.Module):
         self.conv1 = nn.Conv2d(3, 64, kernel_size=7, stride=2, padding=3,
                                bias=False)
         self.bn1 = nn.BatchNorm2d(64)
-        self.relu = ReLU(args, inplace=True)  # ReLuPCA(args, planes)
+        self.relu = ReLU(args, inplace=True, channel_count=64, entropy_approximation=args.ea)  # ReLuPCA(args, planes)
         self.maxpool = nn.MaxPool2d(kernel_size=3, stride=2, padding=1)
         self.layer1 = self._make_layer(args, block, 64, layers[0])
         self.layer2 = self._make_layer(args, block, 128, layers[1], stride=2)
