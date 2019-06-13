@@ -91,7 +91,7 @@ def load_data(args, logger):
     train_data = get_dataset(args.dataset, train=True, transform=transform['train'], datasets_path=args.data)
     test_data = get_dataset(args.dataset, train=False, transform=transform['test'], datasets_path=args.data)
 
-    testLoader = torch.utils.data.DataLoader(test_data, batch_size=args.batch, shuffle=False, num_workers=args.workers)
+    testLoader = torch.utils.data.DataLoader(test_data, batch_size=args.batch, shuffle=True, num_workers=args.workers)
     trainLoader = torch.utils.data.DataLoader(train_data, batch_size=args.batch, shuffle=True, num_workers=args.workers)
 
     return testLoader, trainLoader
