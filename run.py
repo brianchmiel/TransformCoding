@@ -26,6 +26,7 @@ def runTrain(model, args, trainLoader, epoch, optimizer, criterion, logging):
         #         else:
         #             corr = m.corr
         corr = torch.sum(torch.stack([m.corr for m in model.modules() if hasattr(m, "corr")]))
+
         totalLoss, crossEntropyLoss, corrLoss = criterion(out, targets, corr)
         totalLoss.backward()
         optimizer.step()
@@ -66,6 +67,7 @@ def runTest(model, args, testLoader, epoch, criterion, logging):
     top1 = AverageMeter()
     top5 = AverageMeter()
     entropy = 0
+    act_count = 0
     end = time.time()
     for batch_idx, (inputs, targets) in enumerate(testLoader):
         inputs, targets = inputs.cuda(), targets.cuda()
@@ -75,7 +77,7 @@ def runTest(model, args, testLoader, epoch, criterion, logging):
             totalLoss, crossEntropyLoss, corrLoss = criterion(out, targets, corr)
 
             entropy += np.sum(np.array([x.bit_count for x in model.modules() if hasattr(x, "bit_count")]))
-
+            act_count += np.sum(np.array([x.act_size for x in model.modules() if hasattr(x, "act_size")]))
         # measure accuracy and record loss
         prec1, prec5 = accuracy(out, targets, topk=(1, 5))
         totalLosses.update(totalLoss.item(), inputs.size(0))
@@ -86,8 +88,8 @@ def runTest(model, args, testLoader, epoch, criterion, logging):
 
     # measure elapsed time
     batch_time.update(time.time() - end)
-    act_count = np.sum(np.array([x.act_size for x in model.modules() if hasattr(x, "act_size")]))
-    avgEntropy = float(entropy) / len(testLoader) / act_count
+ #   act_count = np.sum(np.array([x.act_size for x in model.modules() if hasattr(x, "act_size")]))
+    avgEntropy = float(entropy) / act_count
     logging.info('Epoch Test: [{}]\t'
                  'Time ({batch_time.avg:.3f})\t'
                  'Total Loss {loss.val:.4f} ({loss.avg:.4f})\t'
