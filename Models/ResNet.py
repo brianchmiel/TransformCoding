@@ -36,11 +36,13 @@ class BasicBlock(nn.Module):
 
         self.conv1 = conv3x3(in_planes, planes, stride)
         self.bn1 = nn.BatchNorm2d(planes)
-        self.relu1 = ReLU(args, inplace=True)  # ReLuPCA(args, planes)
+        self.relu1 = ReLU(args, inplace=True, channel_count=planes,
+                          entropy_approximation=args.ea)  # ReLuPCA(args, planes)
 
         self.conv2 = conv3x3(planes, planes)
         self.bn2 = nn.BatchNorm2d(planes)
-        self.relu2 = ReLU(args, inplace=True)  # ReLuPCA(args, planes)
+        self.relu2 = ReLU(args, inplace=True, channel_count=planes,
+                          entropy_approximation=args.ea)  # ReLuPCA(args, planes)
 
         self.downsample = downsample
 
@@ -106,7 +108,7 @@ class ResNetImagenet(nn.Module):
         self.conv1 = nn.Conv2d(3, 64, kernel_size=7, stride=2, padding=3,
                                bias=False)
         self.bn1 = nn.BatchNorm2d(64)
-        self.relu = ReLU(args, inplace=True)  # ReLuPCA(args, planes)
+        self.relu = ReLU(args, inplace=True, channel_count=64, entropy_approximation=args.ea)  # ReLuPCA(args, planes)
         self.maxpool = nn.MaxPool2d(kernel_size=3, stride=2, padding=1)
         self.layer1 = self._make_layer(args, block, 64, layers[0])
         self.layer2 = self._make_layer(args, block, 128, layers[1], stride=2)
@@ -187,7 +189,7 @@ class ResNetCifar(nn.Module):
 
         self.conv = nn.Conv2d(3, 64, kernel_size=3, stride=1, padding=1, bias=False)
         self.bn = nn.BatchNorm2d(64)
-        self.relu = ReLU(args, inplace=True)  # ReLuPCA(args, 64)
+        self.relu = ReLU(args, inplace=True, channel_count=64, entropy_approximation=args.ea)  # ReLuPCA(args, 64)
 
         self.layer1 = self._make_layer(args, block, fmaps[0], n, stride=1)
         self.layer2 = self._make_layer(args, block, fmaps[1], n, stride=2)
@@ -238,6 +240,9 @@ class ResNetCifar(nn.Module):
     def loadPreTrained(self, pre_trained, device):
         preTrainedDir = os.path.join(pre_trained, self.name, 'ckpt.t7')
         checkpoint = torch.load(preTrainedDir, map_location=device)
+        for l in self.state_dict():
+            if l not in checkpoint['net']:
+                checkpoint['net'][l] = self.state_dict()[l]
         self.load_state_dict(checkpoint['net'])
 
 
