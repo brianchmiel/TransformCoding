@@ -27,6 +27,7 @@ class ReLUCorr(nn.ReLU):
             self.entropy_net = EntropyApprox(
                 self.microBlockSz * self.microBlockSz * (channel_count // self.channelsDiv))
             self.entropy_loss = nn.MSELoss()
+            self.entropy_value = None
             self.entropy_loss_value = None
 
     def forward(self, input):
@@ -56,8 +57,8 @@ class ReLUCorr(nn.ReLU):
                 self.act_size = imProj.numel()
                 self.bit_per_entry = shannon_entropy(imProj)
                 if self.entropy_approximation:
-                    self.entropy_loss_value = self.entropy_loss(self.entropy_net(imProj.transpose(0, 1)),
-                                                                self.bit_per_entry)
+                    self.entropy_value = self.entropy_net(imProj.transpose(0, 1))
+                    self.entropy_loss_value = self.entropy_loss(self.entropy_value, self.bit_per_entry)
                 self.bit_per_entry = self.bit_per_entry.item()
                 self.bit_count = self.bit_per_entry * self.act_size
 
@@ -94,7 +95,8 @@ class ReLUCorr(nn.ReLU):
             imProj, mult, add = part_quant(imProj, max=dynMax, min=dynMin, bitwidth=self.actBitwidth)
 
             self.bit_per_entry = shannon_entropy(imProj)
-            self.entropy_loss_value = self.entropy_loss(self.entropy_net(imProj.transpose(0, 1)), self.bit_per_entry)
+            self.entropy_value = self.entropy_net(imProj.transpose(0, 1))
+            self.entropy_loss_value = self.entropy_loss(self.entropy_value, self.bit_per_entry)
             self.bit_per_entry = self.bit_per_entry.item()
         out = super(ReLUCorr, self).forward(input)
         return out

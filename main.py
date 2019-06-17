@@ -69,6 +69,7 @@ def parseArgs():
                         help='if use linear transformation, otherwise use regular inference')
     parser.add_argument('--use-corr', action='store_true', help='Use correlation loss')
     parser.add_argument('--ea', action='store_true', help='Use entropy approximation')
+    parser.add_argument('--ei', action='store_true', help='Minimize entropy')
 
     args = parser.parse_args()
     args.nClasses = datasets[args.dataset]
