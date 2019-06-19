@@ -70,6 +70,8 @@ def parseArgs():
     parser.add_argument('--use-corr', action='store_true', help='Use correlation loss')
     parser.add_argument('--ea', action='store_true', help='Use entropy approximation')
     parser.add_argument('--ei', action='store_true', help='Minimize entropy')
+    parser.add_argument('--ea-lr', type=float, default=1e-3, help='entropy approximation lr')
+    parser.add_argument('--ei-lr', type=float, default=1e-3, help='entropy minimization lr')
 
     args = parser.parse_args()
     args.nClasses = datasets[args.dataset]

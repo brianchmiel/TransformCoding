@@ -48,7 +48,7 @@ def runTrain(model, args, trainLoader, epoch, optimizer, criterion, logging, use
                     else:
                         eloss += layer.entropy_loss_value
                     if batch_idx % args.print_freq == 0:
-                        print(cnt, layer.entropy_loss_value.item())
+                        pass  # print(cnt, layer.entropy_loss_value.item())
                     leloss = layer.entropy_loss_value.item()
                     if args.ei:
                         if eiloss is None:
@@ -57,11 +57,11 @@ def runTrain(model, args, trainLoader, epoch, optimizer, criterion, logging, use
                             eiloss += layer.entropy_value.mean()
 
             if eloss is not None:
-                ls += 1e-3 * eloss  # TODO: parameter
+                ls += args.ea_lr * eloss
                 eLosses.update(eloss.item(), inputs.size(0))
                 leLosses.update(leloss, inputs.size(0))
             if eiloss is not None:
-                ls += 1e-5 * eiloss  # TODO: parameter
+                ls += args.ei_lr * eiloss
                 eiLosses.update(eiloss.item(), inputs.size(0))
         ls.backward()
         optimizer.step()
